@@ -4,3 +4,69 @@ author: "Tanmayi Amanchi"
 date: "2024-09-30"
 output: github_document
 ---
+
+```{r}
+library(tidyverse)
+library (readxl)
+library (haven)
+library(dplyr)
+```
+
+## Problem 1
+This problem focuses on NYC Transit data. Import the NYC Transit CSV.
+```{r}
+nyc_transit = read_csv(file = "./data/NYC_Transit_Subway_Entrance_And_Exit_Data.csv")
+nyc_transit = janitor::clean_names(nyc_transit)
+```
+
+Select the required columns
+```{r}
+nyc_transit <- nyc_transit %>%
+  mutate(routes_served = apply(select(.,route1:route11), 1, function(x) paste(na.omit(x), collapse = ", "))) %>%
+  select(line, station_name, station_latitude, station_longitude, entry, vending, entrance_type, ada, routes_served) %>% 
+  mutate(entry = ifelse(entry == "YES", TRUE, FALSE))
+```
+
+The variables in the nyc_transit data set are line, station_name, station_longitude, station_latitude, entry, vending, entrance_type, ada, and routes_served. The cleaning steps performed so far include selecting only the relevant columns, creating a new variable routes_served that consolidates information about the routes served at each station, and converting the entry variable from character strings to logical values. The resulting data set dimensions are 1,868 × 9. This is considered tidy, as each variable is represented by a column, each observation is a row, and each type of observational unit is a table.
+
+Finding how many distinct stations there are  
+```{r}
+distinct_stations <- nrow(nyc_transit %>% distinct(line, station_name))
+distinct_stations
+```
+According to this code, there are 465 distinct stations in New York City.
+
+Finding how many are ADA compliant
+```{r}
+ada_compliant_stations <- sum(nyc_transit$ada == TRUE)
+ada_compliant_stations
+```
+According to this code, there are 468 ada compliant stations.
+
+Proportion of station entrances / exits without vending allow entrance?
+```{r}
+nyc_transit <- nyc_transit %>%
+  mutate(vending = ifelse(vending == "YES", TRUE, FALSE)) 
+
+proportion_without_vending <- nyc_transit %>%
+  filter(vending == FALSE) %>%                              
+  summarise(proportion = mean(entry, na.rm = TRUE)) %>%   
+  pull(proportion)
+
+proportion_without_vending
+```
+The output of this code gives us 0.3770492. This means that 37.70% of stations/entrances don't have a vending allow entrance.
+
+```{r}
+a_train_stations <- nyc_transit %>%
+  filter(routes_served == "A") %>%
+  distinct(line, station_name)  
+
+num_a_train_stations <- nrow(a_train_stations)
+
+num_ada_compliant_a_train_stations <- sum(a_train_stations$ada == TRUE, na.rm = TRUE)
+
+print(num_a_train_stations)  
+print(num_ada_compliant_a_train_stations) 
+```
+21 distinct stations serve the A train. Of the stations that serve the A train, 0 are ADA compliant.
