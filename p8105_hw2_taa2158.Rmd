@@ -12,9 +12,9 @@ library (haven)
 library(dplyr)
 ```
 
-## Problem 1
-This problem focuses on NYC Transit data. Import the NYC Transit CSV.
-```{r}
+# Problem 1
+### Import and clean the NYC Transit CSV.
+```{r message = FALSE}
 nyc_transit = read_csv(file = "./data/NYC_Transit_Subway_Entrance_And_Exit_Data.csv")
 nyc_transit = janitor::clean_names(nyc_transit)
 ```
@@ -29,21 +29,21 @@ nyc_transit <- nyc_transit %>%
 
 The variables in the nyc_transit data set are line, station_name, station_longitude, station_latitude, entry, vending, entrance_type, ada, and routes_served. The cleaning steps performed so far include selecting only the relevant columns, creating a new variable routes_served that consolidates information about the routes served at each station, and converting the entry variable from character strings to logical values. The resulting data set dimensions are 1,868 × 9. This is considered tidy, as each variable is represented by a column, each observation is a row, and each type of observational unit is a table.
 
-Finding how many distinct stations there are  
+### Finding how many distinct stations there are  
 ```{r}
 distinct_stations <- nrow(nyc_transit %>% distinct(line, station_name))
 distinct_stations
 ```
 According to this code, there are 465 distinct stations in New York City.
 
-Finding how many are ADA compliant
+### Finding how many are ADA compliant
 ```{r}
 ada_compliant_stations <- sum(nyc_transit$ada == TRUE)
 ada_compliant_stations
 ```
 According to this code, there are 468 ada compliant stations.
 
-Proportion of station entrances / exits without vending allow entrance?
+### Proportion of station entrances / exits without vending allow entrance?
 ```{r}
 nyc_transit <- nyc_transit %>%
   mutate(vending = ifelse(vending == "YES", TRUE, FALSE)) 
@@ -57,7 +57,7 @@ proportion_without_vending
 ```
 The output of this code gives us 0.3770492. This means that 37.70% of stations/entrances don't have a vending allow entrance.
 
-```{r}
+```{r message = FALSE}
 a_train_stations <- nyc_transit %>%
   filter(routes_served == "A") %>%
   distinct(line, station_name)  
@@ -71,8 +71,8 @@ print(num_ada_compliant_a_train_stations)
 ```
 21 distinct stations serve the A train. Of the stations that serve the A train, 0 are ADA compliant.
 
-## Problem 2
-Import, read and clean Mr. Trash Wheel data set
+# Problem 2
+### Import, read and clean Mr. Trash Wheel data set
 ```{r}
 mr_trash = read_excel("./data/202409 Trash Wheel Collection Data.xlsx", 
                       sheet = "Mr. Trash Wheel",
@@ -85,7 +85,7 @@ mr_trash = read_excel("./data/202409 Trash Wheel Collection Data.xlsx",
   )
 ```
 
-Import, read, clean, and organize the data for Professor Trash Wheel 
+### Import, read, clean, and organize the data for Professor Trash Wheel 
 ```{r}
 professor_trash = read_excel("./data/202409 Trash Wheel Collection Data.xlsx", 
                              sheet = "Professor Trash Wheel",
@@ -94,7 +94,7 @@ professor_trash = read_excel("./data/202409 Trash Wheel Collection Data.xlsx",
   mutate(type = "professor_trash")
 ```
 
-Import, read, clean, and organize the data for Gwynnda Trash Wheel 
+### Import, read, clean, and organize the data for Gwynnda Trash Wheel 
 ```{r}
 gwynnda_trash = read_excel("./data/202409 Trash Wheel Collection Data.xlsx", 
                            sheet = "Gwynnda Trash Wheel",
@@ -103,7 +103,7 @@ gwynnda_trash = read_excel("./data/202409 Trash Wheel Collection Data.xlsx",
   mutate(type = "gwynnda_trash")
 ```
 
-Combine to produce a single tidy data set
+### Combine to produce a single tidy data set
 ```{r}
 trash_combine = bind_rows(mr_trash, professor_trash, gwynnda_trash) %>% 
   relocate(type)
@@ -115,7 +115,7 @@ There are `r nrow(trash_combine)` observations and `r ncol(trash_combine)` colum
 print(trash_combine)
 ```
 
-Finding the total weight of trash collected by Professor Trash Wheel and the total number of cigarette butts collected by Gwynnda in June of 2022
+### Finding the total weight of trash collected by Professor Trash Wheel and the total number of cigarette butts collected by Gwynnda in June of 2022
 ```{r}
 prof_weight = 
   trash_combine %>% 
@@ -135,7 +135,125 @@ gwyn_cigarette =
 The total weight of trash collected by Professor Trash Wheel is `r prof_weight` tons. The total number of cigarette butts collected by Gwynnda in June of 2022 is `r format(gwyn_cigarette, scientific=FALSE)`.
 
 
+# Problem 3
+### Import, clean, tidy, and wrangle bakes results and bake csv
+```{r message = FALSE}
+bakers = read_csv("./data/gbb_datasets/bakers.csv") %>% 
+  janitor::clean_names() %>% 
+  mutate(baker_first_name = sub(" .*", "", baker_name)
+         )
+```
+```{r message = FALSE}
+bakes = read_csv("./data/gbb_datasets/bakes.csv", na = c("NA", "N/A", "UNKNOWN", "Unknown", "")) %>% 
+  janitor::clean_names() %>% 
+  mutate(baker = ifelse(baker == "\"Jo\"", "Jo", baker)) %>% 
+  rename(baker_first_name = baker) %>% 
+  arrange(baker_first_name)
+```
+```{r message = FALSE}
+results = read_csv("./data/gbb_datasets/results.csv",skip = 2) %>% 
+  janitor::clean_names() %>% 
+  rename(baker_first_name = baker) %>% 
+  arrange(baker_first_name) %>% 
+  drop_na(result)
+```
+
+When cleaning the `bakers`, `bake`, and `results` csv files, I decided to record all non-numerical and unknown characters as NA. The baker named Jo in the bakes csv was converted into Jo in order to match the name in the other data sets.This was also done to change `baker` into `baker_first_name` in order to maintain correctness across all datasets. Lastly, bakers are ordered alphabetically. Looking at the results csv I also notice how the eliminated bakers have NA after they are eliminated, so this should be dropped from the data set.
+
+### Organize bakers and bake datasets
+```{r}
+baker_bake = left_join(bakers, bakes, join_by(baker_first_name, series))
+
+baker_joined = full_join(baker_bake, results, join_by(baker_first_name, series, episode)) %>% 
+  group_by(baker_first_name, series) %>% 
+  fill(baker_name:hometown) %>% 
+  ungroup() %>% 
+  arrange(baker_first_name) %>% 
+  drop_na(episode)
+```
+The `bakes` and `bake` data set are combines by the baker's first names. This file called `baker_bake` was combined with the results csv by baker's first name, series, and episode information. The resulting file with information from bakes, bake, and results is called `baker_joined` This data set has removed NA's from episode information since every baker does not have information for that.
+
+### View individual data sets using anti_join
+```{r message = FALSE}
+anti_join(bakers,baker_joined,join_by(baker_first_name, series))
+
+anti_join(bakes, baker_joined,join_by(baker_first_name, series, episode))
+
+anti_join(results, baker_joined, join_by(baker_first_name, series, episode))
+```
+
+### Final resulting dataset
+```{r}
+baker_final = baker_joined %>% 
+  select(baker_first_name, baker_name, baker_age, baker_occupation, hometown, series, episode, technical, result, signature_bake, show_stopper) %>% 
+  rename(baker_full_name = baker_name)
+
+baker_final %>% 
+write_csv("./data/gbb_datasets/baker_final.csv")
+```
+In the `baker_final data set, the variables are organized in a meaningful manner with basic information about the baker such as name, age, occupation, performance, series, and episodes. This file is also exported and saved as a csv to my data folder.
+
+We can use the print function to see first couple rows of the baker_final data set
+```{r}
+print(baker_final)
+```
+The baker_final data set has `r nrow(baker_final)` rows and `r ncol(baker_final)` columns. 
 
 
+### Star baker season 5 to season 10
+```{r baker_winner}
+baker_final %>% 
+  select(series, result, baker_first_name) %>% 
+  filter(series >= 5, series <= 10, result %in% c("WINNER", "STAR BAKER")) %>%
+  mutate(result = case_match(result, "WINNER" ~ "Winner", "STAR BAKER" ~ "Star Baker")) %>% 
+  arrange(series, result) %>% 
+  distinct() %>% 
+  pivot_wider(
+    names_from = result,
+    values_from = baker_first_name,
+    values_fn = list
+    ) %>% 
+  rename(Series = series) %>% 
+  knitr::kable()
+```
 
+Filter to see star bakers, and winners
+```{r baker_winner_predict}
+baker_final %>% 
+  select(series, result, baker_first_name) %>% 
+  filter(series >= 5, series <= 10,
+         result %in% c("WINNER", "STAR BAKER")) %>%
+  arrange(baker_first_name) %>% 
+  distinct() %>% 
+  knitr::kable()
+```
+After organizing the baker_final data set to see the winners and star bakers, we can see who won each season from season 5 to 10. It was interesting to see that many of the star bakers ultimately became the winner at the end of the season. The winner of season 10, however won the competition but did not receive a star baker. Therefore, we cannot make strong judgments from this information but we can make inferences. 
 
+### Viewership
+```{r message = FALSE}
+viewers = read_csv("./data/gbb_datasets/viewers.csv") %>% 
+  janitor::clean_names() %>% 
+  pivot_longer(
+    cols = series_1:series_10,
+    names_to = "series",
+    values_to = "viewership",
+    names_prefix = "series_"
+  ) %>% 
+  mutate(series = as.numeric(series)) %>% 
+  relocate(series) %>% 
+  arrange(series)
+
+head(viewers, 10)
+
+viewers %>% 
+  filter(series == 1) %>% 
+  pull(viewership) %>% 
+  mean(, na.rm = TRUE)
+
+viewers %>% 
+  filter(series == 5) %>% 
+  pull(viewership) %>% 
+  mean(, na.rm = TRUE)
+```
+
+The average viewership in Season 1 is 2.77 and 10.04 in Season 5.
