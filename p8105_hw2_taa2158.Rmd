@@ -70,3 +70,72 @@ print(num_a_train_stations)
 print(num_ada_compliant_a_train_stations) 
 ```
 21 distinct stations serve the A train. Of the stations that serve the A train, 0 are ADA compliant.
+
+## Problem 2
+Import, read and clean Mr. Trash Wheel data set
+```{r}
+mr_trash = read_excel("./data/202409 Trash Wheel Collection Data.xlsx", 
+                      sheet = "Mr. Trash Wheel",
+                      range = "A2:N651") %>%
+  janitor::clean_names() %>% 
+  mutate(sports_balls = round(sports_balls),
+         sports_balls = as.integer(sports_balls),
+         type = "mr_trash",
+         year = as.numeric(year)
+  )
+```
+
+Import, read, clean, and organize the data for Professor Trash Wheel 
+```{r}
+professor_trash = read_excel("./data/202409 Trash Wheel Collection Data.xlsx", 
+                             sheet = "Professor Trash Wheel",
+                             range = "A2:M120") %>% 
+  janitor::clean_names() %>% 
+  mutate(type = "professor_trash")
+```
+
+Import, read, clean, and organize the data for Gwynnda Trash Wheel 
+```{r}
+gwynnda_trash = read_excel("./data/202409 Trash Wheel Collection Data.xlsx", 
+                           sheet = "Gwynnda Trash Wheel",
+                           range = "A2:L265") %>% 
+  janitor::clean_names() %>% 
+  mutate(type = "gwynnda_trash")
+```
+
+Combine to produce a single tidy data set
+```{r}
+trash_combine = bind_rows(mr_trash, professor_trash, gwynnda_trash) %>% 
+  relocate(type)
+```
+
+There are `r nrow(trash_combine)` observations and `r ncol(trash_combine)` columns in the resulting data set. By using the print function, we can see the first couple rows of the combined data set:
+
+```{r}
+print(trash_combine)
+```
+
+Finding the total weight of trash collected by Professor Trash Wheel and the total number of cigarette butts collected by Gwynnda in June of 2022
+```{r}
+prof_weight = 
+  trash_combine %>% 
+  filter(type == "professor_trash") %>% 
+  pull(weight_tons) %>% 
+  sum()
+
+gwyn_cigarette = 
+  trash_combine %>% 
+  filter(type == "gwynnda_trash",
+         year == 2022,
+         month == "June") %>% 
+  pull(cigarette_butts) %>% 
+  sum()
+```
+
+The total weight of trash collected by Professor Trash Wheel is `r prof_weight` tons. The total number of cigarette butts collected by Gwynnda in June of 2022 is `r format(gwyn_cigarette, scientific=FALSE)`.
+
+
+
+
+
+
