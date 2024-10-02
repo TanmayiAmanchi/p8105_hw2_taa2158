@@ -1,0 +1,6 @@
+---
+title: "Homework 2 taa2158"
+author: "Tanmayi Amanchi"
+date: "2024-09-30"
+output: github_document
+---
